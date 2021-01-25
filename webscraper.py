@@ -1,15 +1,14 @@
 import requests
 from bs4 import BeautifulSoup
 from pymongo import MongoClient
-from print import pprint
+from pprint import pprint
+import link_lists
+import time
 
 
-URL = 'https://docs.python.org/3/library/functions.html'
-page = requests.get(URL)
-
-soup = BeautifulSoup(page.content, 'html.parser')
-
-connection_url = 'mongodb+srv://jason:hpkot5NMsCJU!2DivqFx@docbot.ualur.mongodb.net/<dbname>?retryWrites=true&w=majority'
+client = MongoClient(
+    'mongodb+srv://jason:hpkot5NMsCJU!2DivqFx@docbot.ualur.mongodb.net/DocLookup?retryWrites=true&w=majority')
+db = client.DocLookup
 
 
 def python_lookup():
@@ -18,14 +17,26 @@ def python_lookup():
     in the python documentation website
     and formats it
     '''
-    doc = ''
-    dls = soup.find_all('dl')
-    for dl in dls:
-        print(dl.find('dt').get('id'))
-        textTags = dl.find_all(['p', 'pre'])
-        for tag in textTags:
-            doc += readable_pTag(tag) + readable_preTag(tag)
-        return doc
+    for link in link_lists.python_link_list:
+        page = requests.get(link)
+
+        soup = BeautifulSoup(page.content, 'html.parser')
+
+        try:
+            dls = soup.find_all('dl')
+            for dl in dls:
+                doc = ''
+                dt = dl.find('dt')
+                name = dt.get('id')
+                textTags = dl.find_all(['p', 'pre'])
+                for tag in textTags:
+                    doc += readable_pTag(tag) + readable_preTag(tag)
+                python = {
+                    'name': name, 'info': doc.rstrip()
+                }
+                result = db.Python.insert_one(python)
+        except:
+            pass
 
 
 def readable_pTag(textTag):
@@ -48,11 +59,4 @@ def readable_preTag(textTag):
     return ''
 
 
-# pTags = function.find_all('p')
-#  for tag in pTags:
-#       if function.find(id=id):
-#            try:
-#                 pre = "\n```" + function.find('pre').text.rstrip() + "```"
-#             except AttributeError:
-#                 pre = ""
-#             return tag.text.replace('\n', '') + pre
+print(python_lookup())
